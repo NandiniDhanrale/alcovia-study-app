@@ -92,14 +92,15 @@ Each tab gets an isolated SQLite database and separate device identity.
 
 ### Vercel Deploy
 
-This repo is set up to deploy the Expo web app from `frontend/` to Vercel.
+This repo is set up to deploy the Expo web app to Vercel from the repository root.
 
 Use these project settings in Vercel:
-- `Root Directory`: `frontend`
-- `Build Command`: `npm run build:web`
-- `Output Directory`: `dist`
+- `Root Directory`: repository root
+- `Build Command`: `cd frontend && npm run build:web`
+- `Output Directory`: `frontend/dist`
 
 The static export is created by `expo export --platform web`, which writes the site into `frontend/dist`.
+If you create a separate Vercel project pointing directly at `frontend/`, the local `frontend/vercel.json` also works.
 
 ### 3. n8n (optional, for notifications)
 
