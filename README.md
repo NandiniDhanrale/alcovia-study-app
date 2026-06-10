@@ -97,7 +97,7 @@ Each tab gets an isolated SQLite database and separate device identity.
 docker-compose up -d
 
 # Open n8n at http://localhost:5678
-# Import the workflow: n8n/workflow.json
+# Import the workflow: n8n-workflow.json
 # Activate the workflow
 ```
 
@@ -212,9 +212,13 @@ Response:
 
 Returns all stored notifications for the UI.
 
+### POST /notification-log/claim
+
+Atomically claims a notification event. Returns `{ claimed: true }` for the single workflow run allowed to send it, otherwise `{ claimed: false }`.
+
 ### GET /notification-log/:eventId
 
-Returns `{ alreadySent: boolean }` — used by n8n for idempotency check.
+Returns the current notification log record for debugging and demo visibility.
 
 ### POST /dev/reset
 
@@ -245,7 +249,7 @@ alcovia-study-app/
 │       ├── store/         # Zustand global state
 │       └── utils/         # deviceId, vectorClock, idGenerator
 ├── n8n/
-│   └── workflow.json      # Importable n8n workflow
+│   └── workflow.json      # Source n8n workflow
 ├── docker-compose.yml
 ├── README.md
 └── DECISIONS.md

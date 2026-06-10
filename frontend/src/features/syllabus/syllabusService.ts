@@ -2,10 +2,10 @@
 // Syllabus Service
 // ============================================================
 
-import { createEvent } from '../events/eventStore';
-import { getDb } from '../db/database';
-import { TaskStatus, Task, Chapter, Subject } from '../events/types';
-import { useAppStore } from '../store/appStore';
+import { createEvent } from '../../events/eventStore';
+import { getDb } from '../../db/database';
+import { TaskStatus } from '../../events/types';
+import { useAppStore } from '../../store/appStore';
 
 const STUDENT_ID = 'student-1';
 
@@ -92,7 +92,7 @@ export function getSubjectProgress(subjectId: string): number {
 
   if (!chapters.length) return 0;
 
-  const total = chapters.reduce((sum, ch) => sum + getChapterProgress(ch.chapterId), 0);
+  const total = chapters.reduce((sum: number, ch: { chapterId: string }) => sum + getChapterProgress(ch.chapterId), 0);
   return Math.round(total / chapters.length);
 }
 
@@ -115,17 +115,17 @@ export function refreshSyllabusState(): void {
     taskId: string; chapterId: string; name: string; status: string; deleted: number; vectorClock: string;
   }>('SELECT * FROM tasks WHERE deleted = 0');
 
-  store.setSubjects(subjects.map(s => ({
+  store.setSubjects(subjects.map((s) => ({
     subjectId: s.subjectId, name: s.name,
     deleted: false, vectorClock: JSON.parse(s.vectorClock || '{}'),
   })));
 
-  store.setChapters(chapters.map(c => ({
+  store.setChapters(chapters.map((c) => ({
     chapterId: c.chapterId, subjectId: c.subjectId, name: c.name,
     deleted: false, vectorClock: JSON.parse(c.vectorClock || '{}'),
   })));
 
-  store.setTasks(tasks.map(t => ({
+  store.setTasks(tasks.map((t) => ({
     taskId: t.taskId, chapterId: t.chapterId, name: t.name,
     status: t.status as TaskStatus, deleted: false,
     vectorClock: JSON.parse(t.vectorClock || '{}'),

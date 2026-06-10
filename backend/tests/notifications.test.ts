@@ -1,6 +1,5 @@
 // ============================================================
 // Notification Idempotency Tests
-// Tests that the notification_log prevents duplicate notifications
 // ============================================================
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -12,13 +11,23 @@ function checkNotificationLog(db: Database.Database, eventId: string): boolean {
   return !!row;
 }
 
-function recordNotification(db: Database.Database, eventId: string, streak: number, coins: number): boolean {
+function claimNotification(db: Database.Database, eventId: string, streak: number, coins: number): boolean {
   try {
     db.prepare('INSERT INTO notification_log (eventId, streak, coins) VALUES (?, ?, ?)').run(eventId, streak, coins);
-    return true; // Successfully recorded — notification should be sent
+    return true;
   } catch {
-    return false; // Already exists — notification already sent
+    return false;
   }
+}
+
+function markSent(db: Database.Database, eventId: string, streak: number, coins: number): boolean {
+  const result = db.prepare(`
+    UPDATE notification_log
+    SET sentAt = datetime('now'), streak = ?, coins = ?
+    WHERE eventId = ?
+  `).run(streak, coins, eventId);
+
+  return result.changes === 1;
 }
 
 describe('Notification Idempotency', () => {
@@ -32,49 +41,61 @@ describe('Notification Idempotency', () => {
     expect(checkNotificationLog(db, 'evt-1')).toBe(false);
   });
 
-  it('records notification successfully on first attempt', () => {
-    const recorded = recordNotification(db, 'evt-1', 3, 150);
+  it('claims notification successfully on first attempt', () => {
+    const recorded = claimNotification(db, 'evt-1', 3, 150);
     expect(recorded).toBe(true);
     expect(checkNotificationLog(db, 'evt-1')).toBe(true);
   });
 
-  it('rejects duplicate notification for same eventId', () => {
-    recordNotification(db, 'evt-1', 3, 150); // First: succeeds
-    const secondAttempt = recordNotification(db, 'evt-1', 3, 150); // Second: rejected
+  it('rejects duplicate claims for the same eventId', () => {
+    claimNotification(db, 'evt-1', 3, 150);
+    const secondAttempt = claimNotification(db, 'evt-1', 3, 150);
     expect(secondAttempt).toBe(false);
   });
 
-  it('allows notifications for different eventIds', () => {
-    const first = recordNotification(db, 'evt-1', 1, 50);
-    const second = recordNotification(db, 'evt-2', 2, 100);
+  it('allows claims for different eventIds', () => {
+    const first = claimNotification(db, 'evt-1', 1, 50);
+    const second = claimNotification(db, 'evt-2', 2, 100);
     expect(first).toBe(true);
     expect(second).toBe(true);
   });
 
-  it('simulates n8n workflow: check before send, record after send', () => {
+  it('simulates n8n workflow: claim before send, mark sent after send', () => {
     const eventId = 'session-success-evt';
     const notificationsSent: string[] = [];
 
-    // Simulate n8n workflow being triggered 3 times with same event
     function simulateN8nRun(id: string): void {
-      const alreadySent = checkNotificationLog(db, id);
-      if (alreadySent) {
-        console.log(`[n8n] Event ${id} already processed — stopping workflow`);
+      const claimed = claimNotification(db, id, 1, 50);
+      if (!claimed) {
         return;
       }
 
-      // "Send" the notification
       notificationsSent.push(id);
-
-      // Record in log (idempotency write)
-      recordNotification(db, id, 1, 50);
+      markSent(db, id, 1, 50);
     }
 
     simulateN8nRun(eventId);
-    simulateN8nRun(eventId); // Replay
-    simulateN8nRun(eventId); // Another replay
+    simulateN8nRun(eventId);
+    simulateN8nRun(eventId);
 
-    expect(notificationsSent).toHaveLength(1); // Only sent once
+    expect(notificationsSent).toHaveLength(1);
+  });
+
+  it('sentAt stays null until the send step completes', () => {
+    claimNotification(db, 'evt-1', 3, 150);
+
+    const beforeSend = db.prepare(
+      'SELECT sentAt FROM notification_log WHERE eventId = ?'
+    ).get('evt-1') as { sentAt: string | null };
+    expect(beforeSend.sentAt).toBeNull();
+
+    const marked = markSent(db, 'evt-1', 3, 150);
+    expect(marked).toBe(true);
+
+    const afterSend = db.prepare(
+      'SELECT sentAt FROM notification_log WHERE eventId = ?'
+    ).get('evt-1') as { sentAt: string | null };
+    expect(afterSend.sentAt).not.toBeNull();
   });
 
   it('notification_log uses eventId as PRIMARY KEY (uniqueness enforced)', () => {

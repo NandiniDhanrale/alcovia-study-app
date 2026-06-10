@@ -47,7 +47,8 @@ export const SCHEMA_SQL = `
   -- Checked by n8n workflow before sending a notification.
   CREATE TABLE IF NOT EXISTS notification_log (
     eventId     TEXT PRIMARY KEY,
-    sentAt      TEXT NOT NULL DEFAULT (datetime('now')),
+    claimedAt   TEXT NOT NULL DEFAULT (datetime('now')),
+    sentAt      TEXT,
     streak      INTEGER,
     coins       INTEGER
   );

@@ -128,7 +128,7 @@ Clients optimistically show the reward immediately (UX), but the server is the a
 ## 5. Notification Idempotency via n8n
 
 ### Decision
-n8n workflow checks `notification_log` before sending, and records the `eventId` after sending.
+n8n workflow atomically claims `eventId` in `notification_log` before sending, then marks the row as sent.
 
 ### Rationale
 Webhooks can be triggered multiple times (retries, network errors, duplicate events). Without idempotency, the student could get 5 "Congratulations!" messages for a single session.
@@ -136,14 +136,14 @@ Webhooks can be triggered multiple times (retries, network errors, duplicate eve
 ```
 n8n workflow:
 1. Receive webhook (eventId, sessionId, streak, coins)
-2. GET /notification-log/:eventId → { alreadySent: boolean }
-3. If alreadySent → stop, return "skipped"
+2. POST /notification-log/claim { eventId } → exactly one run gets { claimed: true }
+3. If claimed=false → stop, return "skipped"
 4. POST /mock-notification → deliver notification
-5. POST /notification-log → record { eventId }
+5. POST /notification-log → mark sentAt
 6. Return "sent"
 ```
 
-The `notification_log.eventId` has a `PRIMARY KEY` constraint — even if step 5 is called twice concurrently, only one INSERT will succeed.
+The `notification_log.eventId` `PRIMARY KEY` makes step 2 atomic. This closes the race that a check-then-send flow would have under concurrent webhook deliveries.
 
 ---
 
@@ -203,7 +203,7 @@ The spec requires `studentId = "student-1"`. A production app would use JWT or O
 Soft deletes mean the database grows over time. A production system would need a compaction/garbage collection strategy to archive or hard-delete records after a grace period.
 
 ### n8n Reliability
-If n8n is down when a session completes, the webhook call silently fails (logged but not retried by the backend). A production system would use a reliable message queue (Redis/BullMQ) with retry logic.
+If the workflow claims an event and then fails before sending, the current design prefers at-most-once notification delivery over retries that could duplicate messages. A production system would keep this in an outbox/queue with retries and dead-letter handling.
 
 ### SQLite on Web
 Expo SQLite uses WebSQL/OPFS on web, which has per-origin storage limits (~1GB). For a study app this is more than adequate, but note it's not shared across different origins.

@@ -5,11 +5,11 @@
 // Sessions work fully offline — events are queued for later sync.
 // ============================================================
 
-import { createEvent } from '../events/eventStore';
-import { getDb } from '../db/database';
-import { generateUUID } from '../utils/idGenerator';
-import { useAppStore } from '../store/appStore';
-import { FocusSession } from '../events/types';
+import { createEvent } from '../../events/eventStore';
+import { getDb } from '../../db/database';
+import { generateUUID } from '../../utils/idGenerator';
+import { useAppStore } from '../../store/appStore';
+import { FocusSession } from '../../events/types';
 
 const STUDENT_ID = 'student-1';
 

@@ -12,7 +12,7 @@ import { useAppStore } from '../../src/store/appStore';
 import { cycleTaskStatus, deleteTask, getChapterProgress, getSubjectProgress, refreshSyllabusState } from '../../src/features/syllabus/syllabusService';
 import { TaskStatus } from '../../src/events/types';
 
-type View = 'subjects' | 'chapters' | 'tasks';
+type SyllabusView = 'subjects' | 'chapters' | 'tasks';
 
 const STATUS_COLORS: Record<TaskStatus, { bg: string; text: string; icon: string }> = {
   NOT_STARTED: { bg: '#1e1e2e', text: '#6b7280', icon: 'radio-button-unchecked' },
@@ -21,7 +21,7 @@ const STATUS_COLORS: Record<TaskStatus, { bg: string; text: string; icon: string
 };
 
 export default function SyllabusScreen() {
-  const [view, setView] = useState<View>('subjects');
+  const [view, setView] = useState<SyllabusView>('subjects');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
 

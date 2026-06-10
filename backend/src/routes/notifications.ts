@@ -1,10 +1,11 @@
 // ============================================================
 // Notification Routes
 //
-// POST /mock-notification — n8n calls this to deliver notifications
-// GET  /notifications     — Frontend polls for notification history
-// POST /notification-log  — n8n checks/records idempotency log
-// GET  /notification-log/:eventId — n8n checks if already sent
+// POST /mock-notification       - n8n calls this to deliver notifications
+// GET  /notifications           - Frontend polls for notification history
+// POST /notification-log/claim  - n8n atomically claims delivery rights
+// POST /notification-log        - n8n marks a claimed notification as sent
+// GET  /notification-log/:eventId - debug/visibility for notification state
 // ============================================================
 
 import { Router, Request, Response } from 'express';
@@ -12,9 +13,6 @@ import { getDb } from '../db/database';
 
 const router = Router();
 
-// ---- POST /mock-notification ----
-// Called by n8n after confirming the notification hasn't been sent yet.
-// Stores the notification for UI display.
 router.post('/mock-notification', (req: Request, res: Response) => {
   const db = getDb();
   const { eventId, sessionId, streak, coins } = req.body;
@@ -24,7 +22,7 @@ router.post('/mock-notification', (req: Request, res: Response) => {
     return;
   }
 
-  const message = `🔥 Focus Session Success! Streak: ${streak} | Coins: ${coins}`;
+  const message = `Focus Session Success! Streak: ${streak} | Coins: ${coins}`;
   console.log(`[Notification] ${message} (eventId: ${eventId})`);
 
   db.prepare(`
@@ -35,8 +33,6 @@ router.post('/mock-notification', (req: Request, res: Response) => {
   res.json({ success: true, message });
 });
 
-// ---- GET /notifications ----
-// Returns all stored notifications for the UI.
 router.get('/notifications', (_req: Request, res: Response) => {
   const db = getDb();
 
@@ -47,23 +43,18 @@ router.get('/notifications', (_req: Request, res: Response) => {
   res.json({ notifications });
 });
 
-// ---- GET /notification-log/:eventId ----
-// n8n uses this to check if a notification was already sent (idempotency check).
 router.get('/notification-log/:eventId', (req: Request, res: Response) => {
   const db = getDb();
   const { eventId } = req.params;
 
   const existing = db.prepare(
     'SELECT * FROM notification_log WHERE eventId = ?'
-  ).get(eventId);
+  ).get(eventId) as { sentAt: string | null } | undefined;
 
-  res.json({ alreadySent: !!existing, record: existing || null });
+  res.json({ alreadySent: !!existing?.sentAt, record: existing || null });
 });
 
-// ---- POST /notification-log ----
-// n8n records the eventId after successfully sending a notification.
-// This is the idempotency write — if this exists, don't send again.
-router.post('/notification-log', (req: Request, res: Response) => {
+router.post('/notification-log/claim', (req: Request, res: Response) => {
   const db = getDb();
   const { eventId, streak, coins } = req.body;
 
@@ -78,14 +69,42 @@ router.post('/notification-log', (req: Request, res: Response) => {
       VALUES (?, ?, ?)
     `).run(eventId, streak ?? 0, coins ?? 0);
 
-    res.json({ success: true });
+    res.json({ claimed: true });
   } catch (err: unknown) {
-    // Duplicate key — already logged (idempotent)
     if (err instanceof Error && err.message.includes('UNIQUE constraint')) {
-      res.json({ success: true, alreadyLogged: true });
+      res.json({ claimed: false, alreadyClaimed: true });
     } else {
-      res.status(500).json({ error: 'Failed to log notification' });
+      res.status(500).json({ error: 'Failed to claim notification' });
     }
+  }
+});
+
+router.post('/notification-log', (req: Request, res: Response) => {
+  const db = getDb();
+  const { eventId, streak, coins } = req.body;
+
+  if (!eventId) {
+    res.status(400).json({ error: 'eventId is required' });
+    return;
+  }
+
+  try {
+    const result = db.prepare(`
+      UPDATE notification_log
+      SET sentAt = datetime('now'),
+          streak = COALESCE(?, streak),
+          coins = COALESCE(?, coins)
+      WHERE eventId = ?
+    `).run(streak ?? null, coins ?? null, eventId);
+
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Notification claim not found' });
+      return;
+    }
+
+    res.json({ success: true, markedSent: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to log notification' });
   }
 });
 
