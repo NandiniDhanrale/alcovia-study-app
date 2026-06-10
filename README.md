@@ -90,6 +90,17 @@ npx expo start --web   # Opens in browser on port 8081
 
 Each tab gets an isolated SQLite database and separate device identity.
 
+### Vercel Deploy
+
+This repo is set up to deploy the Expo web app from `frontend/` to Vercel.
+
+Use these project settings in Vercel:
+- `Root Directory`: `frontend`
+- `Build Command`: `npm run build:web`
+- `Output Directory`: `dist`
+
+The static export is created by `expo export --platform web`, which writes the site into `frontend/dist`.
+
 ### 3. n8n (optional, for notifications)
 
 ```bash
