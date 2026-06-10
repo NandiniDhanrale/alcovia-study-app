@@ -1,0 +1,181 @@
+{
+  "name": "Alcovia Focus Success Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "focus-success",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "alcovia-focus-success"
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:3001/notification-log/{{ $json.body.eventId }}",
+        "options": {}
+      },
+      "id": "check-notification-log",
+      "name": "Check Notification Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "already-sent-check",
+              "leftValue": "={{ $json.alreadySent }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-not-sent",
+      "name": "Already Sent?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/mock-notification",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"eventId\": \"{{ $('Webhook Trigger').item.json.body.eventId }}\",\n  \"sessionId\": \"{{ $('Webhook Trigger').item.json.body.sessionId }}\",\n  \"streak\": {{ $('Webhook Trigger').item.json.body.streak }},\n  \"coins\": {{ $('Webhook Trigger').item.json.body.coins }}\n}",
+        "options": {}
+      },
+      "id": "send-notification",
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/notification-log",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"eventId\": \"{{ $('Webhook Trigger').item.json.body.eventId }}\",\n  \"streak\": {{ $('Webhook Trigger').item.json.body.streak }},\n  \"coins\": {{ $('Webhook Trigger').item.json.body.coins }}\n}",
+        "options": {}
+      },
+      "id": "record-in-log",
+      "name": "Record in Notification Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"skipped\", \"reason\": \"already sent\", \"eventId\": \"{{ $('Webhook Trigger').item.json.body.eventId }}\" }"
+      },
+      "id": "respond-skipped",
+      "name": "Respond: Already Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"sent\", \"eventId\": \"{{ $('Webhook Trigger').item.json.body.eventId }}\" }"
+      },
+      "id": "respond-sent",
+      "name": "Respond: Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1500, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Notification Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Notification Log": {
+      "main": [
+        [
+          {
+            "node": "Already Sent?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Sent?": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Already Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Notification": {
+      "main": [
+        [
+          {
+            "node": "Record in Notification Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record in Notification Log": {
+      "main": [
+        [
+          {
+            "node": "Respond: Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "description": "Alcovia Focus Success notification workflow. Checks notification_log for idempotency before sending, then records the send.",
+    "instanceId": "alcovia-n8n-instance"
+  }
+}

@@ -1,0 +1,64 @@
+# ─── Node / npm ───────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp
+.pnp.js
+
+# ─── Build outputs ────────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+.expo/
+.expo-shared/
+
+# ─── Environment & secrets ────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# ─── TypeScript ───────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Testing ──────────────────────────────────────────────────
+coverage/
+
+# ─── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── OS artefacts ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE / editor ─────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Docker ───────────────────────────────────────────────────
+# (keep docker-compose.yml tracked)
+
+# ─── n8n ──────────────────────────────────────────────────────
+n8n/data/
+
+# ─── SQLite runtime data ──────────────────────────────────────
+backend/data/
+*.db
+*.db-shm
+*.db-wal
+
+# ─── Expo / React Native ──────────────────────────────────────
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/

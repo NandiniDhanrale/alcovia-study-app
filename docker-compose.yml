@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: alcovia-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Allow n8n to call back to the host machine (backend at localhost:3001)
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      # Disable authentication for local dev
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_SKIP_AUTH_CONVERSION=true
+      # Allow connecting to host machine
+      - NODE_FUNCTION_ALLOW_EXTERNAL=axios,node-fetch
+    extra_hosts:
+      # Makes host.docker.internal resolve to host machine on Linux
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Auto-import our workflow on startup
+      - ./n8n:/home/node/.n8n/workflows:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  n8n_data:
+    driver: local
