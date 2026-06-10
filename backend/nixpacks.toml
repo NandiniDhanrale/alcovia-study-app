@@ -1,0 +1,14 @@
+# Tell Nixpacks (Railway's default builder) how to build this app
+# This is used as fallback if Railway doesn't pick up the Dockerfile
+
+[phases.setup]
+nixPkgs = ["python3", "gnumake", "gcc"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "node dist/index.js"
