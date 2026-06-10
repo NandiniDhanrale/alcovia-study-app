@@ -12,14 +12,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy manifests
-COPY package*.json ./
+# Copy backend package manifests
+COPY backend/package*.json ./
 
-# Use npm install instead of npm ci to handle cross-platform lockfile differences
+# Install all deps (including devDeps for TypeScript build)
 RUN npm install
 
-# Copy source and compile TypeScript
-COPY . .
+# Copy backend source
+COPY backend/ .
+
+# Compile TypeScript
 RUN npm run build
 
 ############################
@@ -27,7 +29,6 @@ RUN npm run build
 ############################
 FROM node:20-slim AS runner
 
-# Runtime deps for better-sqlite3 native bindings
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
@@ -36,14 +37,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy manifests and install ONLY production dependencies
-COPY package*.json ./
+COPY backend/package*.json ./
 RUN npm install --omit=dev
 
-# Copy compiled JS from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Data directory for SQLite (Railway mounts a volume here)
 RUN mkdir -p /data
 
 ENV PORT=3001
