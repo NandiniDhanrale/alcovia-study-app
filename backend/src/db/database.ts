@@ -8,8 +8,12 @@ import path from 'path';
 import fs from 'fs';
 import { SCHEMA_SQL, SEED_SQL } from './schema';
 
-const DB_DIR = path.join(__dirname, '../../data');
+// Use /data for Railway persistent volume, fall back to local ./data for dev
+const DB_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? process.env.RAILWAY_VOLUME_MOUNT_PATH
+  : path.join(__dirname, '../../data');
 const DB_PATH = path.join(DB_DIR, 'alcovia.db');
+
 
 let _db: Database.Database | null = null;
 

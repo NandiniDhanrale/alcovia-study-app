@@ -1,4 +1,5 @@
 {
+  "id": 1,
   "name": "Alcovia Focus Success Notification",
   "nodes": [
     {
@@ -173,6 +174,7 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
